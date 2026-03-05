@@ -1,0 +1,3 @@
+# Railway – Next.js; build/start auto. Dodaj PostgreSQL i podłącz DATABASE_URL.
+[build]
+builder = "nixpacks"

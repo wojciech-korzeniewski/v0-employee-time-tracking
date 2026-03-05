@@ -8,6 +8,16 @@ This repository is linked to a [v0](https://v0.app) project. You can continue de
 
 [Continue working on v0 →](https://v0.app/chat/projects/prj_wprM7ti2gJjjWgfrYXZd0tUNkG8r)
 
+## Wdrożenie na Railway
+
+1. **Utwórz projekt** w [Railway](https://railway.app) → **New Project** → **Deploy from GitHub** → wybierz to repozytorium.
+2. **Dodaj bazę** → w projekcie **+ New** → **Database** → **PostgreSQL**. Railway utworzy bazę i ustawi zmienne.
+3. **Podłącz DATABASE_URL** do aplikacji: wejdź w usługę (kafelek) z kodem → **Variables** → **Add variable** → **Add a variable reference** → wybierz zmienną `DATABASE_URL` z usługi PostgreSQL.
+4. **Migracja** – po pierwszym deployu uruchom schemat i seed: w usłudze PostgreSQL → **Data** (lub **Connect**) → otwórz konsolę SQL i wklej zawartość pliku `scripts/migrate.sql`, potem wykonaj.
+5. **Logowanie**: admin / admin123 (hasło ustawione w seedzie).
+
+Aplikacja używa drivera `postgres` (postgres.js) i działa z PostgreSQL na Railway oraz z Neon (connection string w formacie `postgres://`).
+
 ## Getting Started
 
 First, run the development server:

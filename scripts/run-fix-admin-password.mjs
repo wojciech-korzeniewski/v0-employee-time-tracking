@@ -1,9 +1,22 @@
 #!/usr/bin/env node
 /**
  * Applies the admin password fix (64-char SHA-256 hash) to the database.
- * Requires DATABASE_URL in the environment (e.g. from .env.local).
+ * Loads DATABASE_URL from .env.local if present.
  */
-import { neon } from "@neondatabase/serverless"
+import { readFileSync, existsSync } from "fs"
+import { resolve, dirname } from "path"
+import { fileURLToPath } from "url"
+import postgres from "postgres"
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const envPath = resolve(__dirname, "..", ".env.local")
+if (existsSync(envPath)) {
+  const content = readFileSync(envPath, "utf8")
+  for (const line of content.split("\n")) {
+    const m = line.match(/^\s*DATABASE_URL\s*=\s*(.+)\s*$/)
+    if (m) process.env.DATABASE_URL = m[1].replace(/^["']|["']$/g, "").trim()
+  }
+}
 
 const DATABASE_URL = process.env.DATABASE_URL
 if (!DATABASE_URL) {
@@ -11,7 +24,7 @@ if (!DATABASE_URL) {
   process.exit(1)
 }
 
-const sql = neon(DATABASE_URL)
+const sql = postgres(DATABASE_URL, { max: 1 })
 const HASH = "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9"
 
 const result = await sql`UPDATE users SET password_hash = ${HASH} WHERE login = 'admin'`

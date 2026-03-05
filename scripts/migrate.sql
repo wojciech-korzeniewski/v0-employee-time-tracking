@@ -112,7 +112,7 @@ INSERT INTO settings (key, value) VALUES
 ON CONFLICT (key) DO NOTHING;
 
 -- Seed a default HR/admin user (login: admin, password: admin123)
--- password_hash is bcrypt of "admin123"
+-- password_hash is SHA-256 hex (64 chars) of "admin123"
 INSERT INTO users (login, password_hash, role, full_name, email) VALUES
-  ('admin', '$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'hr', 'Administrator HR', 'admin@firma.pl')
+  ('admin', '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', 'hr', 'Administrator HR', 'admin@firma.pl')
 ON CONFLICT (login) DO NOTHING;
