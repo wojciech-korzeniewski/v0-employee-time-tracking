@@ -19,21 +19,33 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const mgr = manager_id && manager_id !== "none" ? parseInt(manager_id) : null
 
-  await sql`
-    UPDATE users SET
-      full_name = ${full_name},
-      email = ${email || null},
-      phone = ${phone || null},
-      address = ${address || null},
-      birth_date = ${birth_date || null},
-      pesel = ${pesel || null},
-      nip = ${nip || null},
-      bank_account = ${bank_account || null},
-      role = ${session.role === "hr" ? role : undefined},
-      manager_id = ${session.role === "hr" ? mgr : undefined},
-      updated_at = NOW()
-    WHERE id = ${userId}
-  `
+  if (session.role === "hr") {
+    await sql`
+      UPDATE users SET
+        full_name = ${full_name},
+        email = ${email || null},
+        phone = ${phone || null},
+        address = ${address || null},
+        birth_date = ${birth_date || null},
+        pesel = ${pesel || null},
+        nip = ${nip || null},
+        bank_account = ${bank_account || null},
+        role = ${role},
+        manager_id = ${mgr},
+        updated_at = NOW()
+      WHERE id = ${userId}
+    `
+  } else {
+    await sql`
+      UPDATE users SET
+        full_name = ${full_name},
+        email = ${email || null},
+        phone = ${phone || null},
+        address = ${address || null},
+        updated_at = NOW()
+      WHERE id = ${userId}
+    `
+  }
 
   return NextResponse.json({ ok: true })
 }

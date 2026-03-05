@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
-import sql from "./db"
+import sql from "@/lib/db"
 
 // Simple password comparison - in production use bcrypt
 // For now we store plain hash using basic comparison
