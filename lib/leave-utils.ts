@@ -7,19 +7,29 @@ export type ContractForYear = {
   end_date: string | null
 }
 
+/** Normalize date to YYYY-MM-DD (DB may return Date or string). */
+function toDateString(d: string | Date | null | undefined): string | null {
+  if (d == null) return null
+  if (typeof d === "string") return d.slice(0, 10)
+  if (d instanceof Date) return d.toISOString().slice(0, 10)
+  return null
+}
+
 /** Number of full calendar months worked in the given year up to asOf (for monthly accrual). */
 export function getMonthsWorkedInYear(
   contract: ContractForYear | null,
   year: number,
   asOf?: string
 ): number {
-  if (!contract?.start_date) return 0
+  const startDateStr = contract ? toDateString(contract.start_date) : null
+  if (!startDateStr) return 0
   const yearStart = `${year}-01-01`
   const yearEnd = `${year}-12-31`
   const upTo = asOf && asOf <= yearEnd && asOf >= yearStart ? asOf : yearEnd
-  const start = contract.start_date > yearStart ? contract.start_date : yearStart
+  const start = startDateStr > yearStart ? startDateStr : yearStart
   if (start > upTo) return 0
-  const endRaw = contract.end_date && contract.end_date < upTo ? contract.end_date : upTo
+  const endDateStr = toDateString(contract.end_date)
+  const endRaw = endDateStr && endDateStr < upTo ? endDateStr : upTo
   const end = endRaw > upTo ? upTo : endRaw
 
   const [sY, sM] = start.split("-").map(Number)
