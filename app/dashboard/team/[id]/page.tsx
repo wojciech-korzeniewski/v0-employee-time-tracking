@@ -33,7 +33,13 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
     AND (end_date IS NULL OR end_date >= ${year + "-01-01"})
     ORDER BY start_date DESC LIMIT 1
   `
-  const contract = contractForYear.length ? (contractForYear[0] as { start_date: string; end_date: string | null }) : null
+  const rawContractForYear = contractForYear.length ? contractForYear[0] as { start_date: string | Date; end_date: string | Date | null } : null
+  const contract = rawContractForYear
+    ? {
+        start_date: typeof rawContractForYear.start_date === "string" ? rawContractForYear.start_date : (rawContractForYear.start_date as Date).toISOString().slice(0, 10),
+        end_date: rawContractForYear.end_date == null ? null : typeof rawContractForYear.end_date === "string" ? rawContractForYear.end_date : (rawContractForYear.end_date as Date).toISOString().slice(0, 10),
+      }
+    : null
 
   const allowanceRows = await sql`
     SELECT la.*, lt.name as leave_type_name, lt.is_paid, lt.accrual_type, lt.days_per_year

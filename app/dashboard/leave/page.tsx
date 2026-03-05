@@ -23,7 +23,13 @@ export default async function LeavePage() {
     AND (end_date IS NULL OR end_date >= ${year + "-01-01"})
     ORDER BY start_date DESC LIMIT 1
   `
-  const contract = contractRows.length ? (contractRows[0] as { start_date: string; end_date: string | null }) : null
+  const rawContract = contractRows.length ? contractRows[0] as { start_date: string | Date; end_date: string | Date | null } : null
+  const contract = rawContract
+    ? {
+        start_date: typeof rawContract.start_date === "string" ? rawContract.start_date : (rawContract.start_date as Date).toISOString().slice(0, 10),
+        end_date: rawContract.end_date == null ? null : typeof rawContract.end_date === "string" ? rawContract.end_date : (rawContract.end_date as Date).toISOString().slice(0, 10),
+      }
+    : null
   const asOf = new Date().toISOString().split("T")[0]
   const allowances = withEffectiveTotals(allowanceRows as any[], contract, year, asOf)
 

@@ -28,7 +28,13 @@ export default async function ProfilePage() {
     AND (end_date IS NULL OR end_date >= ${year + "-01-01"})
     ORDER BY start_date DESC LIMIT 1
   `
-  const contract = contractForYear.length ? (contractForYear[0] as { start_date: string; end_date: string | null }) : null
+  const rawContractForYear = contractForYear.length ? contractForYear[0] as { start_date: string | Date; end_date: string | Date | null } : null
+  const contract = rawContractForYear
+    ? {
+        start_date: typeof rawContractForYear.start_date === "string" ? rawContractForYear.start_date : (rawContractForYear.start_date as Date).toISOString().slice(0, 10),
+        end_date: rawContractForYear.end_date == null ? null : typeof rawContractForYear.end_date === "string" ? rawContractForYear.end_date : (rawContractForYear.end_date as Date).toISOString().slice(0, 10),
+      }
+    : null
 
   const allowanceRows = await sql`
     SELECT la.*, lt.name as leave_type_name, lt.is_paid, lt.accrual_type, lt.days_per_year
@@ -49,8 +55,12 @@ export default async function ProfilePage() {
     WHERE user_id = ${session.id} AND work_date >= ${monthStart}
   `
   const totalMinutes = monthEntries.reduce((sum: number, e: any) => {
-    const [sh, sm] = e.start_time.split(":").map(Number)
-    const [eh, em] = e.end_time.split(":").map(Number)
+    const start = e?.start_time != null ? String(e.start_time) : ""
+    const end = e?.end_time != null ? String(e.end_time) : ""
+    if (!start || !end) return sum
+    const [sh, sm] = start.split(":").map(Number)
+    const [eh, em] = end.split(":").map(Number)
+    if (Number.isNaN(sh + sm + eh + em)) return sum
     return sum + Math.max(0, (eh * 60 + em) - (sh * 60 + sm) - (e.break_minutes || 0))
   }, 0)
 
