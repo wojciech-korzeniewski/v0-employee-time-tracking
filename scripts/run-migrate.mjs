@@ -28,31 +28,40 @@ if (!DATABASE_URL) {
 const client = new Client({ connectionString: DATABASE_URL, ssl: DATABASE_URL.includes("railway") ? { rejectUnauthorized: false } : undefined })
 await client.connect()
 
-const migratePath = resolve(__dirname, "migrate.sql")
-const fullSql = readFileSync(migratePath, "utf8")
+const sqlFiles = ["migrate.sql", "add-accrual.sql"]
 
-const statements = fullSql
-  .split(";")
-  .map((s) => s.replace(/--[^\n]*/g, "").trim())
-  .filter((s) => s.length > 0)
+for (const fileName of sqlFiles) {
+  const filePath = resolve(__dirname, fileName)
+  if (!existsSync(filePath)) {
+    console.log(`Skipping missing file: ${fileName}`)
+    continue
+  }
+  console.log(`Running ${fileName}...`)
+  const fullSql = readFileSync(filePath, "utf8")
+  const statements = fullSql
+    .split(";")
+    .map((s) => s.replace(/--[^\n]*/g, "").trim())
+    .filter((s) => s.length > 0)
 
-for (let i = 0; i < statements.length; i++) {
-  const stmt = statements[i] + ";"
-  try {
-    await client.query(stmt)
-    console.log("OK:", stmt.slice(0, 50).replace(/\n/g, " ") + "...")
-  } catch (err) {
-    if (err.code === "42P07") {
-      console.log("Skip (already exists):", stmt.slice(0, 50).replace(/\n/g, " ") + "...")
-    } else {
-      console.error("Error at statement", i + 1, ":", err.message)
-      console.error(stmt.slice(0, 200))
-      await client.end()
-      process.exit(1)
+  for (let i = 0; i < statements.length; i++) {
+    const stmt = statements[i] + ";"
+    try {
+      await client.query(stmt)
+      console.log("OK:", stmt.slice(0, 60).replace(/\n/g, " ") + "...")
+    } catch (err) {
+      if (err.code === "42P07") {
+        console.log("Skip (already exists):", stmt.slice(0, 60).replace(/\n/g, " ") + "...")
+      } else {
+        console.error("Error in", fileName, "statement", i + 1, ":", err.message)
+        console.error(stmt.slice(0, 200))
+        await client.end()
+        process.exit(1)
+      }
     }
   }
+  console.log(`${fileName} finished.`)
 }
 
-console.log("Migration finished.")
+console.log("All migrations finished.")
 await client.end()
 process.exit(0)
