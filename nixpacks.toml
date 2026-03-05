@@ -1,0 +1,4 @@
+# Use npm install instead of npm ci so optional deps (@tailwindcss/oxide-*, etc.)
+# are resolved for the build platform (Linux). npm ci has a known bug with optionals.
+[phases.install]
+cmds = ["npm install"]
