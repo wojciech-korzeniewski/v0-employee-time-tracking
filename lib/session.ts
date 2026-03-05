@@ -1,5 +1,5 @@
 import { cookies } from "next/headers"
-import sql from "./db"
+import sql from "@/lib/db"
 
 export type SessionUser = {
   id: number
