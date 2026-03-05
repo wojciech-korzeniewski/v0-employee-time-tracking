@@ -1,39 +1,22 @@
-"use server"
-
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
 import sql from "@/lib/db"
 
-// Simple password comparison - in production use bcrypt
-// For now we store plain hash using basic comparison
-// The seeded admin password "admin123" uses bcrypt, so we handle both
-
-async function verifyPassword(plain: string, hash: string): Promise<boolean> {
-  // If hash starts with $2b$ it's bcrypt - we use a simple check for demo seed
-  // For new users we store SHA-256 style via Web Crypto
-  if (hash.startsWith("$2b$")) {
-    // bcrypt hash - only the seeded admin uses this
-    // We check against known value for the seed
-    if (plain === "admin123" && hash === "$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi") {
-      return true
-    }
-    return false
-  }
-  // For new users: SHA-256 hex
-  const encoder = new TextEncoder()
-  const data = encoder.encode(plain)
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("")
-  return hashHex === hash
-}
-
-export async function hashPassword(plain: string): Promise<string> {
+async function sha256(plain: string): Promise<string> {
   const encoder = new TextEncoder()
   const data = encoder.encode(plain)
   const hashBuffer = await crypto.subtle.digest("SHA-256", data)
   const hashArray = Array.from(new Uint8Array(hashBuffer))
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("")
+}
+
+async function verifyPassword(plain: string, hash: string): Promise<boolean> {
+  const computed = await sha256(plain)
+  return computed === hash
+}
+
+export async function hashPassword(plain: string): Promise<string> {
+  return sha256(plain)
 }
 
 export async function login(login: string, password: string): Promise<{ error?: string }> {
