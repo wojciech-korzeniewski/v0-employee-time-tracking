@@ -123,13 +123,14 @@ export function ReportsClient({ scheduleData, leaveSummary, month, year }: Props
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {userData.leaves.map((l: any) => {
-                        const remaining = l.total_days + l.carried_over_days - l.used_days
+                        const total = Number(l.total_days) + Number(l.carried_over_days)
+                        const remaining = total - Number(l.used_days)
                         return (
                           <div key={l.leave_type_name} className="bg-muted rounded-lg p-2.5">
                             <p className="text-xs text-muted-foreground mb-1 truncate">{l.leave_type_name}</p>
                             <div className="flex items-baseline gap-1">
                               <span className="text-sm font-bold">{remaining}</span>
-                              <span className="text-xs text-muted-foreground">/ {l.total_days + l.carried_over_days}</span>
+                              <span className="text-xs text-muted-foreground">/ {total}</span>
                             </div>
                           </div>
                         )

@@ -2,11 +2,22 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Plus, CalendarRange, CheckCircle2, XCircle, Clock } from "lucide-react"
+import { Plus, CalendarRange, CheckCircle2, XCircle, Clock, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -66,6 +77,7 @@ export function LeaveClient({ userId, allowances, requests, leaveTypes }: Props)
   const [endDate, setEndDate] = useState("")
   const [leaveTypeId, setLeaveTypeId] = useState("")
   const [note, setNote] = useState("")
+  const [deletingId, setDeletingId] = useState<number | null>(null)
 
   const dayCount = startDate && endDate
     ? countWorkingDays(new Date(startDate), new Date(endDate))
@@ -99,6 +111,19 @@ export function LeaveClient({ userId, allowances, requests, leaveTypes }: Props)
       toast.error(data.error || "Błąd składania wniosku")
     }
     setSubmitting(false)
+  }
+
+  async function handleDelete(requestId: number) {
+    setDeletingId(requestId)
+    const res = await fetch(`/api/leave?id=${requestId}`, { method: "DELETE" })
+    if (res.ok) {
+      toast.success("Wniosek usunięty")
+      router.refresh()
+    } else {
+      const data = await res.json()
+      toast.error(data.error || "Nie udało się usunąć wniosku")
+    }
+    setDeletingId(null)
   }
 
   return (
@@ -173,10 +198,10 @@ export function LeaveClient({ userId, allowances, requests, leaveTypes }: Props)
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Saldo urlopów {new Date().getFullYear()}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {allowances.map((a) => {
-              const remaining = a.total_days + a.carried_over_days - a.used_days
-              const pct = (a.total_days + a.carried_over_days) > 0
-                ? Math.round((a.used_days / (a.total_days + a.carried_over_days)) * 100)
-                : 0
+              const total = Number(a.total_days) + Number(a.carried_over_days)
+              const used = Number(a.used_days)
+              const remaining = total - used
+              const pct = total > 0 ? Math.round((used / total) * 100) : 0
               return (
                 <Card key={a.id} className="border">
                   <CardContent className="p-4">
@@ -189,8 +214,8 @@ export function LeaveClient({ userId, allowances, requests, leaveTypes }: Props)
                     </div>
                     <p className="text-2xl font-bold mb-1">{remaining}</p>
                     <p className="text-xs text-muted-foreground mb-2">
-                      z {a.total_days + a.carried_over_days} dni
-                      {a.carried_over_days > 0 && ` (+${a.carried_over_days} przeniesione)`}
+                      z {total} dni
+                      {Number(a.carried_over_days) > 0 && ` (+${Number(a.carried_over_days)} przeniesione)`}
                     </p>
                     <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                       <div className="h-full bg-primary rounded-full" style={{ width: `${Math.min(100, pct)}%` }} />
@@ -233,13 +258,46 @@ export function LeaveClient({ userId, allowances, requests, leaveTypes }: Props)
                           )}
                         </div>
                       </div>
-                      <Badge
-                        variant="outline"
-                        className={cn("flex items-center gap-1.5 text-xs", sc.className)}
-                      >
-                        <Icon className="h-3 w-3" />
-                        {sc.label}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={cn("flex items-center gap-1.5 text-xs", sc.className)}
+                        >
+                          <Icon className="h-3 w-3" />
+                          {sc.label}
+                        </Badge>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                              disabled={deletingId === r.id}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Usunąć wniosek?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {r.status === "approved"
+                                  ? "Wniosek jest zatwierdzony – po usunięciu dni zostaną przywrócone do salda. Czy na pewno chcesz usunąć ten wniosek?"
+                                  : "Ta operacja jest nieodwracalna. Czy na pewno chcesz usunąć ten wniosek?"}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Anuluj</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(r.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Usuń
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

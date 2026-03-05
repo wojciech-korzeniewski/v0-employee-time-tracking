@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
   }
 
   const rows = await sql`
-    SELECT * FROM schedule_entries
+    SELECT id, user_id, work_date::text AS work_date, start_time::text AS start_time, end_time::text AS end_time, break_minutes, note, created_at, updated_at
+    FROM schedule_entries
     WHERE user_id = ${userId}
       AND work_date >= ${start}
       AND work_date <= ${end}

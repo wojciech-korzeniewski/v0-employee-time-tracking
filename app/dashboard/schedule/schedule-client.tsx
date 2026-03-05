@@ -45,11 +45,12 @@ export function ScheduleClient({ sessionUser, teamMembers }: Props) {
     const data = await res.json()
     const map: Record<string, ScheduleEntry> = {}
     for (const e of data) {
-      map[e.work_date] = {
+      const dateKey = typeof e.work_date === "string" ? e.work_date.slice(0, 10) : format(e.work_date, "yyyy-MM-dd")
+      map[dateKey] = {
         id: e.id,
-        work_date: e.work_date,
-        start_time: e.start_time.slice(0, 5),
-        end_time: e.end_time.slice(0, 5),
+        work_date: dateKey,
+        start_time: typeof e.start_time === "string" ? e.start_time.slice(0, 5) : String(e.start_time).slice(0, 5),
+        end_time: typeof e.end_time === "string" ? e.end_time.slice(0, 5) : String(e.end_time).slice(0, 5),
         break_minutes: e.break_minutes || 0,
         note: e.note || "",
       }

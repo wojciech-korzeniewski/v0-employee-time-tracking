@@ -297,7 +297,9 @@ export function EmployeeDetailClient({ user, contracts, allowances, leaveTypes, 
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {allowances.map((a) => {
-                const remaining = a.total_days + a.carried_over_days - a.used_days
+                const total = Number(a.total_days) + Number(a.carried_over_days)
+                const used = Number(a.used_days)
+                const remaining = total - used
                 return (
                   <Card key={a.id} className="border">
                     <CardContent className="p-4">
@@ -305,11 +307,11 @@ export function EmployeeDetailClient({ user, contracts, allowances, leaveTypes, 
                       <p className="text-xs text-muted-foreground">{a.is_paid ? "Płatny" : "Bezpłatny"}</p>
                       <div className="mt-2 grid grid-cols-3 gap-2 text-center">
                         <div>
-                          <p className="text-lg font-bold">{a.total_days}</p>
+                          <p className="text-lg font-bold">{Number(a.total_days)}</p>
                           <p className="text-xs text-muted-foreground">Przyznano</p>
                         </div>
                         <div>
-                          <p className="text-lg font-bold text-primary">{a.used_days}</p>
+                          <p className="text-lg font-bold text-primary">{used}</p>
                           <p className="text-xs text-muted-foreground">Wykorzystano</p>
                         </div>
                         <div>
@@ -317,8 +319,8 @@ export function EmployeeDetailClient({ user, contracts, allowances, leaveTypes, 
                           <p className="text-xs text-muted-foreground">Zostało</p>
                         </div>
                       </div>
-                      {a.carried_over_days > 0 && (
-                        <p className="text-xs text-muted-foreground mt-1 text-center">+{a.carried_over_days} przeniesione</p>
+                      {Number(a.carried_over_days) > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1 text-center">+{Number(a.carried_over_days)} przeniesione</p>
                       )}
                     </CardContent>
                   </Card>

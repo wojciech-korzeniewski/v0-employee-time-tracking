@@ -139,7 +139,7 @@ export default async function DashboardPage() {
             </div>
             <p className="text-2xl font-bold text-foreground">
               {mainLeave
-                ? mainLeave.total_days + mainLeave.carried_over_days - mainLeave.used_days
+                ? Number(mainLeave.total_days) + Number(mainLeave.carried_over_days) - Number(mainLeave.used_days)
                 : "–"}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">Dni urlopu pozostało</p>
@@ -199,14 +199,16 @@ export default async function DashboardPage() {
             <CardContent className="px-5 pb-4">
               <div className="flex flex-col gap-3">
                 {allowances.map((a: any) => {
-                  const remaining = a.total_days + a.carried_over_days - a.used_days
-                  const pct = a.total_days > 0 ? Math.round((a.used_days / a.total_days) * 100) : 0
+                  const total = Number(a.total_days) + Number(a.carried_over_days)
+                  const used = Number(a.used_days)
+                  const remaining = total - used
+                  const pct = total > 0 ? Math.round((used / total) * 100) : 0
                   return (
                     <div key={a.id}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-sm text-foreground">{a.leave_type_name}</span>
                         <span className="text-sm font-medium">
-                          {remaining} / {a.total_days + a.carried_over_days} dni
+                          {remaining} / {total} dni
                         </span>
                       </div>
                       <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">

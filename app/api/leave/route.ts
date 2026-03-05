@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
   if (allowanceRows.length > 0) {
     const a = allowanceRows[0] as any
-    const remaining = a.total_days + a.carried_over_days - a.used_days
+    const remaining = Number(a.total_days) + Number(a.carried_over_days) - Number(a.used_days)
     if (days_count > remaining) {
       return NextResponse.json({ error: `Niewystarczające saldo urlopowe (zostało ${remaining} dni)` }, { status: 400 })
     }
@@ -84,6 +84,39 @@ export async function PATCH(req: NextRequest) {
         AND year = ${year}
     `
   }
+
+  return NextResponse.json({ ok: true })
+}
+
+export async function DELETE(req: NextRequest) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
+  const { searchParams } = new URL(req.url)
+  const id = searchParams.get("id")
+  if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 })
+
+  const rows = await sql`SELECT * FROM leave_requests WHERE id = ${parseInt(id, 10)}`
+  if (!rows.length) return NextResponse.json({ error: "Not found" }, { status: 404 })
+
+  const request = rows[0] as { user_id: number; status: string; leave_type_id: number; start_date: string; days_count: number }
+
+  if (request.user_id !== session.id) {
+    return NextResponse.json({ error: "Możesz usunąć tylko własny wniosek" }, { status: 403 })
+  }
+
+  if (request.status === "approved") {
+    const year = new Date(request.start_date).getFullYear()
+    await sql`
+      UPDATE leave_allowances
+      SET used_days = GREATEST(0, used_days - ${request.days_count})
+      WHERE user_id = ${request.user_id}
+        AND leave_type_id = ${request.leave_type_id}
+        AND year = ${year}
+    `
+  }
+
+  await sql`DELETE FROM leave_requests WHERE id = ${parseInt(id, 10)}`
 
   return NextResponse.json({ ok: true })
 }
