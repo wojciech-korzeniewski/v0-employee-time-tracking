@@ -45,11 +45,13 @@ export default async function DashboardPage() {
   `
 
   // Get pending leaves for current user
-  const pendingLeaves = await sql`
+  const pendingLeavesRows = await sql`
     SELECT COUNT(*) as count
     FROM leave_requests
     WHERE user_id = ${session.id} AND status = 'pending'
   `
+  const pendingLeavesCount = (pendingLeavesRows?.[0] as { count: string | number } | undefined)?.count
+  const pendingLeavesCountNum = pendingLeavesCount != null ? parseInt(String(pendingLeavesCount), 10) || 0 : 0
 
   // Today's schedule
   const todaySchedule = await sql`
@@ -66,8 +68,12 @@ export default async function DashboardPage() {
       AND work_date <= ${todayStr}
   `
   const totalMinutes = monthSchedule.reduce((sum: number, e: any) => {
-    const [sh, sm] = e.start_time.split(":").map(Number)
-    const [eh, em] = e.end_time.split(":").map(Number)
+    const start = e?.start_time != null ? String(e.start_time) : ""
+    const end = e?.end_time != null ? String(e.end_time) : ""
+    if (!start || !end) return sum
+    const [sh, sm] = start.split(":").map(Number)
+    const [eh, em] = end.split(":").map(Number)
+    if (Number.isNaN(sh + sm + eh + em)) return sum
     return sum + Math.max(0, (eh * 60 + em) - (sh * 60 + sm) - (e.break_minutes || 0))
   }, 0)
   const totalHours = Math.round(totalMinutes / 60 * 10) / 10
@@ -82,14 +88,16 @@ export default async function DashboardPage() {
       WHERE lr.status = 'pending'
         AND (${session.role} = 'hr' OR u.manager_id = ${session.id})
     `
-    pendingApprovals = parseInt(result[0].count)
+    const row = result?.[0] as { count: string | number } | undefined
+    pendingApprovals = row ? parseInt(String(row.count), 10) || 0 : 0
   }
 
   // HR: total employees
   let totalEmployees = 0
   if (session.role === "hr") {
     const result = await sql`SELECT COUNT(*) as count FROM users WHERE role != 'hr'`
-    totalEmployees = parseInt(result[0].count)
+    const row = result?.[0] as { count: string | number } | undefined
+    totalEmployees = row ? parseInt(String(row.count), 10) || 0 : 0
   }
 
   const mainLeave = allowances.find((a: any) => a.leave_type_name === "Urlop wypoczynkowy")
@@ -99,7 +107,7 @@ export default async function DashboardPage() {
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">
-          Dzień dobry, {session.full_name.split(" ")[0]}
+          Dzień dobry, {(session.full_name || "").trim().split(/\s+/)[0] || "użytkowniku"}
         </h1>
         <p className="text-muted-foreground text-sm mt-0.5">
           {today.toLocaleDateString("pl-PL", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
@@ -117,8 +125,8 @@ export default async function DashboardPage() {
               </div>
             </div>
             <p className="text-2xl font-bold text-foreground">
-              {todaySchedule.length > 0
-                ? `${(todaySchedule[0] as any).start_time.slice(0, 5)}–${(todaySchedule[0] as any).end_time.slice(0, 5)}`
+              {todaySchedule.length > 0 && todaySchedule[0]
+                ? `${String((todaySchedule[0] as any).start_time ?? "").slice(0, 5)}–${String((todaySchedule[0] as any).end_time ?? "").slice(0, 5)}`
                 : "–"}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">Dzisiaj</p>
@@ -172,11 +180,11 @@ export default async function DashboardPage() {
           <Card className="border">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
-                <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${parseInt(pendingLeaves[0].count) > 0 ? "bg-warning/10" : "bg-muted"}`}>
-                  <AlertCircle className={`h-4 w-4 ${parseInt(pendingLeaves[0].count) > 0 ? "text-warning" : "text-muted-foreground"}`} />
+                <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${pendingLeavesCountNum > 0 ? "bg-warning/10" : "bg-muted"}`}>
+                  <AlertCircle className={`h-4 w-4 ${pendingLeavesCountNum > 0 ? "text-warning" : "text-muted-foreground"}`} />
                 </div>
               </div>
-              <p className="text-2xl font-bold text-foreground">{pendingLeaves[0].count}</p>
+              <p className="text-2xl font-bold text-foreground">{pendingLeavesCountNum}</p>
               <p className="text-xs text-muted-foreground mt-0.5">Wnioski oczekujące</p>
             </CardContent>
           </Card>
