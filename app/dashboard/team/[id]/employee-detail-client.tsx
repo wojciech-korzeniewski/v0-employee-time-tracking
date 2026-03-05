@@ -49,7 +49,7 @@ export function EmployeeDetailClient({ user, contracts, allowances, leaveTypes, 
   })
 
   const [allowanceDialog, setAllowanceDialog] = useState(false)
-  const [allowanceForm, setAllowanceForm] = useState({ leave_type_id: "", total_days: "", year: String(year) })
+  const [allowanceForm, setAllowanceForm] = useState({ leave_type_id: "", total_days: "", annual_days: "", year: String(year) })
   const [contractDialog, setContractDialog] = useState(false)
   const [contractForm, setContractForm] = useState({
     contract_type: "UoP", salary_type: "monthly", salary_amount: "",
@@ -77,10 +77,18 @@ export function EmployeeDetailClient({ user, contracts, allowances, leaveTypes, 
 
   async function saveAllowance(e: React.FormEvent) {
     e.preventDefault()
+    const selectedType = leaveTypes.find((t: any) => String(t.id) === allowanceForm.leave_type_id)
+    const isMonthly = selectedType?.accrual_type === "monthly"
+    const body = {
+      leave_type_id: allowanceForm.leave_type_id,
+      year: allowanceForm.year,
+      total_days: isMonthly ? 0 : (parseInt(allowanceForm.total_days, 10) || 0),
+      annual_days: isMonthly ? (parseFloat(allowanceForm.annual_days) || selectedType?.days_per_year) : null,
+    }
     const res = await fetch(`/api/users/${user.id}/allowances`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(allowanceForm),
+      body: JSON.stringify(body),
     })
     if (res.ok) {
       toast.success("Saldo urlopowe zaktualizowane")
@@ -297,7 +305,8 @@ export function EmployeeDetailClient({ user, contracts, allowances, leaveTypes, 
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {allowances.map((a) => {
-                const total = Number(a.total_days) + Number(a.carried_over_days)
+                const effectiveTotal = Number((a as any).effective_total_days ?? a.total_days)
+                const total = effectiveTotal + Number(a.carried_over_days)
                 const used = Number(a.used_days)
                 const remaining = total - used
                 return (
@@ -307,7 +316,7 @@ export function EmployeeDetailClient({ user, contracts, allowances, leaveTypes, 
                       <p className="text-xs text-muted-foreground">{a.is_paid ? "Płatny" : "Bezpłatny"}</p>
                       <div className="mt-2 grid grid-cols-3 gap-2 text-center">
                         <div>
-                          <p className="text-lg font-bold">{Number(a.total_days)}</p>
+                          <p className="text-lg font-bold">{effectiveTotal}</p>
                           <p className="text-xs text-muted-foreground">Przyznano</p>
                         </div>
                         <div>
@@ -338,25 +347,58 @@ export function EmployeeDetailClient({ user, contracts, allowances, leaveTypes, 
           <form onSubmit={saveAllowance} className="flex flex-col gap-3 mt-2">
             <div className="flex flex-col gap-1.5">
               <Label>Rodzaj urlopu</Label>
-              <Select value={allowanceForm.leave_type_id} onValueChange={(v) => setAllowanceForm({ ...allowanceForm, leave_type_id: v })} required>
+              <Select
+                value={allowanceForm.leave_type_id}
+                onValueChange={(v) => {
+                  const t = leaveTypes.find((x: any) => String(x.id) === v)
+                  setAllowanceForm({
+                    ...allowanceForm,
+                    leave_type_id: v,
+                    annual_days: t?.days_per_year != null ? String(t.days_per_year) : "",
+                    total_days: t?.accrual_type === "monthly" ? "" : allowanceForm.total_days,
+                  })
+                }}
+                required
+              >
                 <SelectTrigger><SelectValue placeholder="Wybierz" /></SelectTrigger>
                 <SelectContent>
                   {leaveTypes.map((t: any) => (
-                    <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
+                    <SelectItem key={t.id} value={String(t.id)}>{t.name} {t.accrual_type === "monthly" ? "(co miesiąc)" : "(z góry)"}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-1.5">
-                <Label>Liczba dni</Label>
-                <Input type="number" min={0} value={allowanceForm.total_days} onChange={(e) => setAllowanceForm({ ...allowanceForm, total_days: e.target.value })} required />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <Label>Rok</Label>
-                <Input type="number" value={allowanceForm.year} onChange={(e) => setAllowanceForm({ ...allowanceForm, year: e.target.value })} required />
-              </div>
-            </div>
+            {(() => {
+              const selectedType = leaveTypes.find((t: any) => String(t.id) === allowanceForm.leave_type_id)
+              const isMonthly = selectedType?.accrual_type === "monthly"
+              return (
+                <div className="grid grid-cols-2 gap-3">
+                  {isMonthly ? (
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Dni w roku (naliczane co miesiąc)</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step={0.01}
+                        placeholder={selectedType?.days_per_year != null ? String(selectedType.days_per_year) : "26"}
+                        value={allowanceForm.annual_days}
+                        onChange={(e) => setAllowanceForm({ ...allowanceForm, annual_days: e.target.value })}
+                      />
+                      <p className="text-xs text-muted-foreground">Za każdy przepracowany miesiąc: {(parseFloat(allowanceForm.annual_days) || selectedType?.days_per_year || 0) / 12} dni</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1.5">
+                      <Label>Liczba dni (z góry)</Label>
+                      <Input type="number" min={0} value={allowanceForm.total_days} onChange={(e) => setAllowanceForm({ ...allowanceForm, total_days: e.target.value })} required={!isMonthly} />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Rok</Label>
+                    <Input type="number" value={allowanceForm.year} onChange={(e) => setAllowanceForm({ ...allowanceForm, year: e.target.value })} required />
+                  </div>
+                </div>
+              )
+            })()}
             <Button type="submit">Zapisz</Button>
           </form>
         </DialogContent>

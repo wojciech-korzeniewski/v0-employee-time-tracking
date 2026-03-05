@@ -198,7 +198,7 @@ export function LeaveClient({ userId, allowances, requests, leaveTypes }: Props)
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Saldo urlopów {new Date().getFullYear()}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {allowances.map((a) => {
-              const total = Number(a.total_days) + Number(a.carried_over_days)
+              const total = Number((a as any).effective_total_days ?? a.total_days) + Number(a.carried_over_days)
               const used = Number(a.used_days)
               const remaining = total - used
               const pct = total > 0 ? Math.round((used / total) * 100) : 0

@@ -134,7 +134,8 @@ export function ProfileClient({ user, contract, allowances, totalHoursThisMonth 
           </CardContent>
         </Card>
         {allowances.slice(0, 3).map((a: any) => {
-          const remaining = Number(a.total_days) + Number(a.carried_over_days) - Number(a.used_days)
+          const total = Number(a.effective_total_days ?? a.total_days) + Number(a.carried_over_days)
+          const remaining = total - Number(a.used_days)
           return (
             <Card key={a.id} className="border">
               <CardContent className="p-3">

@@ -7,9 +7,44 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
-  const userId = parseInt(searchParams.get("userId") || String(session.id))
+  const userIdsParam = searchParams.get("userIds")
   const start = searchParams.get("start")
   const end = searchParams.get("end")
+
+  // Team overview: multiple userIds (only manager/hr)
+  if (userIdsParam && (session.role === "manager" || session.role === "hr")) {
+    if (!start || !end) {
+      return NextResponse.json({ error: "Missing start or end" }, { status: 400 })
+    }
+    const requestedIds = userIdsParam.split(",").map((s) => parseInt(s.trim(), 10)).filter(Boolean)
+    if (requestedIds.length === 0) {
+      return NextResponse.json([])
+    }
+    let allowedIds: number[]
+    if (session.role === "hr") {
+      allowedIds = requestedIds
+    } else {
+      const rows = await sql`
+        SELECT id FROM users WHERE manager_id = ${session.id} OR id = ${session.id}
+      `
+      const managerTeamIds = (rows as { id: number }[]).map((r) => r.id)
+      allowedIds = requestedIds.filter((id) => managerTeamIds.includes(id))
+    }
+    if (allowedIds.length === 0) {
+      return NextResponse.json([])
+    }
+    const rows = await sql`
+      SELECT id, user_id, work_date::text AS work_date, start_time::text AS start_time, end_time::text AS end_time, break_minutes, note, created_at, updated_at
+      FROM schedule_entries
+      WHERE user_id IN (${sql(allowedIds)})
+        AND work_date >= ${start}
+        AND work_date <= ${end}
+      ORDER BY user_id, work_date
+    `
+    return NextResponse.json(rows)
+  }
+
+  const userId = parseInt(searchParams.get("userId") || String(session.id))
 
   // Only allow seeing others if manager/hr
   if (userId !== session.id && session.role === "employee") {

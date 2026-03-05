@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS leave_types (
   days_per_year INTEGER,
   carries_over BOOLEAN DEFAULT FALSE,
   max_carryover_days INTEGER DEFAULT 0,
+  accrual_type VARCHAR(20) NOT NULL DEFAULT 'upfront' CHECK (accrual_type IN ('upfront', 'monthly')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -54,6 +55,7 @@ CREATE TABLE IF NOT EXISTS leave_allowances (
   total_days INTEGER NOT NULL DEFAULT 0,
   used_days NUMERIC(5,1) NOT NULL DEFAULT 0,
   carried_over_days NUMERIC(5,1) NOT NULL DEFAULT 0,
+  annual_days NUMERIC(5,2) DEFAULT NULL,
   UNIQUE(user_id, leave_type_id, year)
 );
 
@@ -97,11 +99,11 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 -- Seed default leave types
-INSERT INTO leave_types (name, is_paid, days_per_year, carries_over, max_carryover_days) VALUES
-  ('Urlop wypoczynkowy', TRUE, 26, TRUE, 10),
-  ('Urlop bezpłatny', FALSE, NULL, FALSE, 0),
-  ('Urlop na żądanie', TRUE, 4, FALSE, 0),
-  ('Zwolnienie lekarskie', TRUE, NULL, FALSE, 0)
+INSERT INTO leave_types (name, is_paid, days_per_year, carries_over, max_carryover_days, accrual_type) VALUES
+  ('Urlop wypoczynkowy', TRUE, 26, TRUE, 10, 'monthly'),
+  ('Urlop bezpłatny', FALSE, NULL, FALSE, 0, 'upfront'),
+  ('Urlop na żądanie', TRUE, 4, FALSE, 0, 'upfront'),
+  ('Zwolnienie lekarskie', TRUE, NULL, FALSE, 0, 'upfront')
 ON CONFLICT DO NOTHING;
 
 -- Seed default settings

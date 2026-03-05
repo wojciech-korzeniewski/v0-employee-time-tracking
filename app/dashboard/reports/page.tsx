@@ -2,6 +2,7 @@ import { getSession } from "@/lib/session"
 import { redirect } from "next/navigation"
 import sql from "@/lib/db"
 import { ReportsClient } from "./reports-client"
+import { getMonthsWorkedInYear, getEffectiveTotalDays } from "@/lib/leave-utils"
 
 export default async function ReportsPage() {
   const session = await getSession()
@@ -33,20 +34,46 @@ export default async function ReportsPage() {
     ORDER BY u.full_name
   `
 
-  // Leave summary per user
-  const leaveSummary = await sql`
+  // Leave summary per user (with accrual info)
+  const leaveSummaryRows = await sql`
     SELECT
       u.id,
       u.full_name,
       lt.name as leave_type_name,
       la.total_days,
       la.used_days,
-      la.carried_over_days
+      la.carried_over_days,
+      lt.accrual_type,
+      lt.days_per_year,
+      la.annual_days
     FROM users u
     JOIN leave_allowances la ON la.user_id = u.id AND la.year = ${year}
     JOIN leave_types lt ON lt.id = la.leave_type_id
     ORDER BY u.full_name, lt.name
   `
+
+  const contractRows = await sql`
+    SELECT user_id, start_date, end_date FROM contracts
+    WHERE start_date <= ${year + "-12-31"} AND (end_date IS NULL OR end_date >= ${year + "-01-01"})
+  `
+  const contractsByUser: Record<number, { start_date: string; end_date: string | null }> = {}
+  for (const r of contractRows as any[]) {
+    if (!contractsByUser[r.user_id]) contractsByUser[r.user_id] = { start_date: r.start_date, end_date: r.end_date }
+  }
+
+  const asOf = new Date().toISOString().split("T")[0]
+  const leaveSummary = (leaveSummaryRows as any[]).map((row) => {
+    const contract = contractsByUser[row.id] ?? null
+    const monthsWorked = getMonthsWorkedInYear(contract, year, asOf)
+    const effective_total_days = getEffectiveTotalDays(
+      Number(row.total_days),
+      row.accrual_type ?? "upfront",
+      row.annual_days != null ? Number(row.annual_days) : null,
+      row.days_per_year != null ? Number(row.days_per_year) : null,
+      monthsWorked
+    )
+    return { ...row, effective_total_days }
+  })
 
   return (
     <ReportsClient
